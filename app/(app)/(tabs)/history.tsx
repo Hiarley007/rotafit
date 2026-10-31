@@ -31,6 +31,7 @@ export default function HistoryScreen() {
   if (isError) return <ErrorState message={friendlyError(error)} onRetry={refetch} />;
   return (
     <FlatList
+      style={{ backgroundColor: theme.background }}
       data={data ?? []}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.content}

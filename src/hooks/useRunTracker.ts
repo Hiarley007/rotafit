@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { averagePaceSecPerKm, simplifyRoute } from '@/utils/geo';
 import { elapsedSeconds, initialTrackerState, trackerReducer } from '@/utils/tracker';
 import type { SaveRunInput } from '@/types';
@@ -10,6 +11,7 @@ export function useRunTracker() {
   const [state, dispatch] = useReducer(trackerReducer, initialTrackerState);
   const [now, setNow] = useState(() => Date.now());
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const subscription = useRef<Location.LocationSubscription | null>(null);
   useEffect(() => {
     if (state.status !== 'active') return undefined;
@@ -22,6 +24,37 @@ export function useRunTracker() {
   }, []);
   useEffect(() => stopWatching, [stopWatching]);
   const startWatching = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      const geolocation = globalThis.navigator?.geolocation;
+      if (!geolocation) {
+        throw new Error('Este navegador não oferece suporte à localização.');
+      }
+      const watchId = geolocation.watchPosition(
+        (loc) =>
+          dispatch({
+            type: 'ADD_POINT',
+            now: loc.timestamp,
+            lat: loc.coords.latitude,
+            lng: loc.coords.longitude,
+          }),
+        (error) => {
+          stopWatching();
+          dispatch({ type: 'RESET' });
+          setPermissionDenied(error.code === error.PERMISSION_DENIED);
+          setLocationError(
+            error.code === error.PERMISSION_DENIED
+              ? 'Permita o acesso à localização nas configurações do navegador e tente novamente.'
+              : error.code === error.TIMEOUT
+                ? 'O GPS demorou para responder. Tente novamente em uma área aberta.'
+                : 'Não foi possível obter sua localização. Verifique o GPS e tente novamente.',
+          );
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 },
+      );
+      subscription.current = { remove: () => geolocation.clearWatch(watchId) };
+      return;
+    }
+
     const sub = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.BestForNavigation,
@@ -37,17 +70,45 @@ export function useRunTracker() {
         }),
     );
     subscription.current = sub;
-  }, []);
+  }, [stopWatching]);
   const start = useCallback(async () => {
+    setLocationError(null);
+    setPermissionDenied(false);
+    if (Platform.OS === 'web') {
+      dispatch({ type: 'START', now: Date.now() });
+      try {
+        await startWatching();
+        return true;
+      } catch (error) {
+        dispatch({ type: 'RESET' });
+        setLocationError(
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível iniciar a localização.',
+        );
+        return false;
+      }
+    }
+
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
       setPermissionDenied(true);
+      setLocationError('Permita o acesso à localização para iniciar a corrida.');
       return false;
     }
-    setPermissionDenied(false);
     dispatch({ type: 'START', now: Date.now() });
-    await startWatching();
-    return true;
+    try {
+      await startWatching();
+      return true;
+    } catch (error) {
+      dispatch({ type: 'RESET' });
+      setLocationError(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível iniciar a localização.',
+      );
+      return false;
+    }
   }, [startWatching]);
   const pause = useCallback(() => {
     stopWatching();
@@ -89,6 +150,7 @@ export function useRunTracker() {
     elapsedSeconds: seconds,
     pace: averagePaceSecPerKm(state.distanceMeters, seconds),
     permissionDenied,
+    locationError,
     start,
     pause,
     resume,
