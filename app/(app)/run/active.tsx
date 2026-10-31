@@ -1,13 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GlassSurface, glassShadow } from '@/components/glass/GlassSurface';
 import { RoutePath } from '@/components/RoutePath';
 import { SpotifyPlayerCard } from '@/components/spotify/SpotifyPlayerCard';
@@ -37,11 +31,7 @@ export default function ActiveRunScreen() {
   const [starting, setStarting] = useState(false);
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
-  function showMessage(
-    title: string,
-    message: string,
-    onConfirm?: () => void,
-  ) {
+  function showMessage(title: string, message: string, onConfirm?: () => void) {
     setDialog({
       title,
       message,
@@ -49,6 +39,15 @@ export default function ActiveRunScreen() {
       onConfirm,
     });
   }
+
+  useEffect(() => {
+    if (!tracker.locationError) return;
+    setDialog({
+      title: 'Localização indisponível',
+      message: tracker.locationError,
+      confirmLabel: 'Entendi',
+    });
+  }, [tracker.locationError]);
 
   async function handleStart() {
     setStarting(true);
@@ -63,10 +62,7 @@ export default function ActiveRunScreen() {
         );
       }
     } catch (error) {
-      showMessage(
-        'Não foi possível iniciar a corrida',
-        friendlyError(error),
-      );
+      showMessage('Não foi possível iniciar a corrida', friendlyError(error));
     } finally {
       setStarting(false);
     }
@@ -119,7 +115,7 @@ export default function ActiveRunScreen() {
       destructive: true,
       onConfirm: () => {
         tracker.reset();
-        router.back();
+        router.replace('/');
       },
     });
   }
@@ -144,8 +140,8 @@ export default function ActiveRunScreen() {
         </Text>
 
         <Text style={[styles.readyText, { color: theme.muted }]}>
-          Vamos usar sua localização para acompanhar a rota, a distância e o
-          ritmo em tempo real.
+          Vamos usar sua localização para acompanhar a rota, a distância e o ritmo em
+          tempo real.
         </Text>
 
         <Pressable
@@ -169,11 +165,7 @@ export default function ActiveRunScreen() {
           <Text style={[styles.cancel, { color: theme.muted }]}>Cancelar</Text>
         </Pressable>
 
-        <RunDialog
-          dialog={dialog}
-          onCancel={closeDialog}
-          onConfirm={confirmDialog}
-        />
+        <RunDialog dialog={dialog} onCancel={closeDialog} onConfirm={confirmDialog} />
       </View>
     );
   }
@@ -184,11 +176,7 @@ export default function ActiveRunScreen() {
 
       <View style={styles.stats}>
         <GlassSurface radius={radius.lg} style={styles.statsCard} intensity={30}>
-          <Stat
-            label="Distância"
-            value={formatDistance(tracker.distanceMeters)}
-            big
-          />
+          <Stat label="Distância" value={formatDistance(tracker.distanceMeters)} big />
 
           <View style={styles.statsRow}>
             <Stat label="Tempo" value={formatDuration(tracker.elapsedSeconds)} />
@@ -224,17 +212,11 @@ export default function ActiveRunScreen() {
         </View>
 
         <Pressable accessibilityRole="button" onPress={handleDiscard}>
-          <Text style={[styles.discard, { color: theme.muted }]}>
-            Descartar corrida
-          </Text>
+          <Text style={[styles.discard, { color: theme.muted }]}>Descartar corrida</Text>
         </Pressable>
       </View>
 
-      <RunDialog
-        dialog={dialog}
-        onCancel={closeDialog}
-        onConfirm={confirmDialog}
-      />
+      <RunDialog dialog={dialog} onCancel={closeDialog} onConfirm={confirmDialog} />
     </View>
   );
 }
@@ -264,9 +246,7 @@ function RunDialog({
           intensity={50}
           style={styles.dialogCard}
         >
-          <Text style={[styles.dialogTitle, { color: theme.text }]}>
-            {dialog?.title}
-          </Text>
+          <Text style={[styles.dialogTitle, { color: theme.text }]}>{dialog?.title}</Text>
 
           <Text style={[styles.dialogMessage, { color: theme.muted }]}>
             {dialog?.message}
@@ -295,9 +275,7 @@ function RunDialog({
               style={[
                 styles.dialogButton,
                 {
-                  backgroundColor: dialog?.destructive
-                    ? theme.danger
-                    : theme.primary,
+                  backgroundColor: dialog?.destructive ? theme.danger : theme.primary,
                 },
               ]}
             >
@@ -312,15 +290,7 @@ function RunDialog({
   );
 }
 
-function Stat({
-  label,
-  value,
-  big,
-}: {
-  label: string;
-  value: string;
-  big?: boolean;
-}) {
+function Stat({ label, value, big }: { label: string; value: string; big?: boolean }) {
   const { theme } = useTheme();
 
   return (

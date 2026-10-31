@@ -1,4 +1,6 @@
 import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 import {
   createContext,
   useCallback,
@@ -10,21 +12,25 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 import { deleteSecureItem, getSecureItem, setSecureItem } from '@/lib/secureStore';
-import { SPOTIFY_SCOPES, spotifyClientId, spotifyDiscovery } from '@/lib/spotify';
+import {
+  SPOTIFY_SCOPES,
+  spotifyAppRedirectUri,
+  spotifyClientId,
+  spotifyDiscovery,
+  spotifyRedirectUri,
+} from '@/lib/spotify';
 import type { SpotifyTokens } from '@/types';
 const STORE_KEY = 'rotafit.spotify.tokens';
 interface SpotifyContextValue {
   tokens: SpotifyTokens | null;
   connecting: boolean;
-  connect: () => void;
+  error: string | null;
+  connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   getValidAccessToken: () => Promise<string | null>;
 }
 const SpotifyContext = createContext<SpotifyContextValue | undefined>(undefined);
-const redirectUri = AuthSession.makeRedirectUri({
-  scheme: 'rotafit',
-  path: 'spotify-auth',
-});
+WebBrowser.maybeCompleteAuthSession();
 async function saveTokens(tokens: SpotifyTokens) {
   await setSecureItem(STORE_KEY, JSON.stringify(tokens));
 }
@@ -43,30 +49,29 @@ async function loadTokens(): Promise<SpotifyTokens | null> {
 export function SpotifyProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<SpotifyTokens | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const refreshing = useRef<Promise<string | null> | null>(null);
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    { clientId: spotifyClientId, scopes: SPOTIFY_SCOPES, redirectUri, usePKCE: true },
+    {
+      clientId: spotifyClientId,
+      scopes: SPOTIFY_SCOPES,
+      redirectUri: spotifyRedirectUri,
+      usePKCE: true,
+    },
     spotifyDiscovery,
   );
-  useEffect(() => {
-    loadTokens().then(setTokens);
-  }, []);
-  useEffect(() => {
-    if (response?.type !== 'success' || !request?.codeVerifier) {
-      if (response?.type === 'error' || response?.type === 'cancel') setConnecting(false);
-      return;
-    }
-    setConnecting(true);
-    AuthSession.exchangeCodeAsync(
-      {
-        clientId: spotifyClientId,
-        code: response.params.code,
-        redirectUri,
-        extraParams: { code_verifier: request.codeVerifier },
-      },
-      spotifyDiscovery,
-    )
-      .then(async (result) => {
+  const exchangeAuthorizationCode = useCallback(
+    async (code: string, codeVerifier: string) => {
+      try {
+        const result = await AuthSession.exchangeCodeAsync(
+          {
+            clientId: spotifyClientId,
+            code,
+            redirectUri: spotifyRedirectUri,
+            extraParams: { code_verifier: codeVerifier },
+          },
+          spotifyDiscovery,
+        );
         const next: SpotifyTokens = {
           accessToken: result.accessToken,
           refreshToken: result.refreshToken ?? '',
@@ -74,16 +79,97 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
         };
         await saveTokens(next);
         setTokens(next);
-      })
-      .finally(() => setConnecting(false));
-  }, [response, request]);
-  const connect = useCallback(() => {
+        setError(null);
+      } catch (reason) {
+        const message =
+          reason instanceof Error
+            ? reason.message
+            : 'Não foi possível conectar ao Spotify.';
+        setError(`${message} Callback enviado: ${spotifyRedirectUri}`);
+      } finally {
+        setConnecting(false);
+      }
+    },
+    [],
+  );
+  useEffect(() => {
+    loadTokens().then(setTokens);
+  }, []);
+  useEffect(() => {
+    if (!response) return;
+    if (response.type !== 'success') {
+      if (response?.type === 'error') {
+        setError(
+          `${response.error?.message ?? 'A autorização do Spotify falhou.'} Callback enviado: ${spotifyRedirectUri}`,
+        );
+        setConnecting(false);
+      } else if (response?.type === 'cancel' || response?.type === 'dismiss') {
+        setConnecting(false);
+      }
+      return;
+    }
+    const codeVerifier = request?.codeVerifier;
+    if (!codeVerifier) {
+      setError('Não foi possível concluir a autorização do Spotify. Tente novamente.');
+      setConnecting(false);
+      return;
+    }
     setConnecting(true);
-    promptAsync().catch(() => setConnecting(false));
-  }, [promptAsync]);
+    void exchangeAuthorizationCode(response.params.code, codeVerifier);
+  }, [response, request, exchangeAuthorizationCode]);
+  const connect = useCallback(async () => {
+    if (!spotifyClientId) {
+      setError('Configure EXPO_PUBLIC_SPOTIFY_CLIENT_ID para conectar o Spotify.');
+      return;
+    }
+    if (!request) {
+      setError('Aguarde um instante e tente conectar novamente.');
+      return;
+    }
+    setError(null);
+    setConnecting(true);
+    try {
+      if (Platform.OS !== 'web') {
+        if (!request.url || !request.codeVerifier) {
+          throw new Error(
+            'A autorização do Spotify ainda está sendo preparada. Tente novamente.',
+          );
+        }
+        const result = await WebBrowser.openAuthSessionAsync(
+          request.url,
+          spotifyAppRedirectUri,
+        );
+        if (result.type === 'success') {
+          const authResponse = request.parseReturnUrl(result.url);
+          if (authResponse.type === 'success') {
+            await exchangeAuthorizationCode(
+              authResponse.params.code,
+              request.codeVerifier,
+            );
+          } else {
+            setError(
+              `${authResponse.type === 'error' ? authResponse.error?.message : 'A autorização do Spotify foi cancelada.'} Callback enviado: ${spotifyRedirectUri}`,
+            );
+            setConnecting(false);
+          }
+        } else {
+          setConnecting(false);
+        }
+        return;
+      }
+      const result = await promptAsync();
+      if (result.type !== 'success') setConnecting(false);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : 'Não foi possível abrir o Spotify.',
+      );
+      setConnecting(false);
+    }
+  }, [exchangeAuthorizationCode, promptAsync, request]);
   const disconnect = useCallback(async () => {
     await deleteSecureItem(STORE_KEY);
     setTokens(null);
+    setError(null);
   }, []);
   // Renova o token de acesso quando falta menos de um minuto para expirar, e
   // devolve um token pronto para uso (ou null, se não há conta conectada).
@@ -117,8 +203,8 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     return refreshing.current;
   }, [tokens, disconnect]);
   const value = useMemo(
-    () => ({ tokens, connecting, connect, disconnect, getValidAccessToken }),
-    [tokens, connecting, connect, disconnect, getValidAccessToken],
+    () => ({ tokens, connecting, error, connect, disconnect, getValidAccessToken }),
+    [tokens, connecting, error, connect, disconnect, getValidAccessToken],
   );
   return <SpotifyContext.Provider value={value}>{children}</SpotifyContext.Provider>;
 }
