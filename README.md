@@ -1,4 +1,4 @@
-# RotaFit
+git swit# RotaFit
 
 Aplicativo de corrida e caminhada com React Native e Expo. Registra rota por GPS, distância, duração e ritmo, salva o histórico no Supabase e oferece um player conectado ao Spotify.
 
