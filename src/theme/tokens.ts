@@ -1,6 +1,5 @@
-// Paletas do RotaFit. "light" usa Milano Red + Lemon Chiffon; "dark" é inspirado
-// no Flamengo (rubro-negro). Os dois alimentam o estilo Liquid Glass: cada
-// superfície de vidro é a cor "glass" com transparência, mais um brilho no topo.
+// Paletas esportivas com verde de trilha e laranja de energia, mantendo
+// contraste confortável em ambientes externos e durante a corrida.
 export interface ThemeTokens {
   mode: 'light' | 'dark';
   background: string;
@@ -11,9 +10,9 @@ export interface ThemeTokens {
   glassHighlight: string; // brilho no topo do vidro
   text: string;
   muted: string;
-  primary: string; // Milano Red nos dois temas
+  primary: string;
   primarySoft: string;
-  secondary: string; // Lemon Chiffon (claro) / vermelho vivo (escuro)
+  secondary: string;
   onPrimary: string;
   border: string;
   success: string;
@@ -22,40 +21,40 @@ export interface ThemeTokens {
 }
 export const lightTheme: ThemeTokens = {
   mode: 'light',
-  background: '#FFFACD', // Lemon Chiffon
-  backgroundAlt: '#FFF6B8',
-  surface: '#FFFDF2',
-  glass: '#FFFFFF',
-  glassBorder: 'rgba(184, 17, 4, 0.22)',
-  glassHighlight: 'rgba(255, 255, 255, 0.75)',
-  text: '#3A0A03',
-  muted: '#8A5A3B',
-  primary: '#B81104', // Milano Red
-  primarySoft: '#F6D9CF',
-  secondary: '#FFFACD',
-  onPrimary: '#FFFDF2',
-  border: 'rgba(184, 17, 4, 0.16)',
-  success: '#1E7D32',
-  danger: '#B81104',
+  background: '#EAF3E8',
+  backgroundAlt: '#DCEBDD',
+  surface: '#F7FBF6',
+  glass: '#F4FAF2',
+  glassBorder: 'rgba(25, 103, 70, 0.22)',
+  glassHighlight: 'rgba(255, 255, 255, 0.82)',
+  text: '#173126',
+  muted: '#5D7769',
+  primary: '#287A4F',
+  primarySoft: '#D7E9D6',
+  secondary: '#E9652B',
+  onPrimary: '#FFFFFF',
+  border: 'rgba(25, 103, 70, 0.15)',
+  success: '#25845A',
+  danger: '#C83D37',
   statusBar: 'dark',
 };
 export const darkTheme: ThemeTokens = {
   mode: 'dark',
-  background: '#0B0B0D', // preto Flamengo
-  backgroundAlt: '#151013',
-  surface: '#1A1114',
-  glass: '#1E1418',
-  glassBorder: 'rgba(230, 20, 30, 0.35)',
-  glassHighlight: 'rgba(255, 255, 255, 0.10)',
-  text: '#F5EDEE',
-  muted: '#B08C90',
-  primary: '#E6141E', // vermelho Flamengo
-  primarySoft: 'rgba(230, 20, 30, 0.18)',
-  secondary: '#111111',
-  onPrimary: '#FFFFFF',
-  border: 'rgba(255, 255, 255, 0.10)',
-  success: '#34D399',
-  danger: '#FF4D5E',
+  background: '#101A16',
+  backgroundAlt: '#172720',
+  surface: '#1B2B23',
+  glass: '#1A2A22',
+  glassBorder: 'rgba(183, 232, 111, 0.24)',
+  glassHighlight: 'rgba(255, 255, 255, 0.09)',
+  text: '#F1F7F1',
+  muted: '#A5B8AA',
+  primary: '#B7E86F',
+  primarySoft: 'rgba(183, 232, 111, 0.16)',
+  secondary: '#FF9566',
+  onPrimary: '#20311C',
+  border: 'rgba(255, 255, 255, 0.1)',
+  success: '#8BD58B',
+  danger: '#FF7168',
   statusBar: 'light',
 };
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };

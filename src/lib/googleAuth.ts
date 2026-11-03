@@ -23,10 +23,7 @@ export async function signInWithGoogle(): Promise<void> {
     throw new Error('Não foi possível iniciar o login com o Google.');
   }
 
-  const result = await WebBrowser.openAuthSessionAsync(
-    data.url,
-    authRedirectUri,
-  );
+  const result = await WebBrowser.openAuthSessionAsync(data.url, authRedirectUri);
 
   if (result.type !== 'success' || !result.url) {
     if (result.type === 'cancel' || result.type === 'dismiss') return;

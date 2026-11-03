@@ -15,7 +15,7 @@ import { spacing, useTheme } from '@/theme';
 // nada tocando.
 export function SpotifyPlayerCard() {
   const { theme } = useTheme();
-  const { tokens, connect, connecting } = useSpotify();
+  const { tokens, connect, connecting, error } = useSpotify();
   const { data: track, isLoading } = useNowPlaying();
   const pause = usePausePlayback();
   const resume = useResumePlayback();
@@ -32,7 +32,7 @@ export function SpotifyPlayerCard() {
         </View>
         <Pressable
           accessibilityRole="button"
-          onPress={connect}
+          onPress={() => void connect()}
           disabled={connecting}
           style={[styles.connectBtn, { backgroundColor: theme.primary }]}
         >
@@ -40,6 +40,9 @@ export function SpotifyPlayerCard() {
             {connecting ? 'Conectando...' : 'Conectar Spotify'}
           </Text>
         </Pressable>
+        {error ? (
+          <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>
+        ) : null}
       </Card>
     );
   }
@@ -126,4 +129,5 @@ const styles = StyleSheet.create({
   },
   connectBtn: { borderRadius: 999, paddingVertical: 12, alignItems: 'center' },
   connectText: { color: '#FFF', fontWeight: '700' },
+  error: { fontSize: 13, textAlign: 'center' },
 });

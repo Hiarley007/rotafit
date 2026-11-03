@@ -1,30 +1,38 @@
 import Constants from 'expo-constants';
-import { Alert, Image, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ThemePicker } from '@/components/ThemePicker';
 import { useAuth } from '@/context/AuthContext';
 import { useSpotify } from '@/context/SpotifyContext';
+import { spotifyRedirectUri } from '@/lib/spotify';
 import { spacing, useTheme } from '@/theme';
-import { friendlyError } from '@/utils/errors';
 export default function ProfileScreen() {
   const { theme } = useTheme();
   const { user, signOut } = useAuth();
-  const { tokens, connect, disconnect, connecting } = useSpotify();
+  const { tokens, connect, disconnect, connecting, error: spotifyError } = useSpotify();
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const name = String(user?.user_metadata?.full_name ?? 'Usuário');
   const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
-  function confirmSignOut() {
-    Alert.alert('Sair', 'Deseja encerrar a sessão?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Sair',
-        style: 'destructive',
-        onPress: () => signOut().catch((e) => Alert.alert('Erro', friendlyError(e))),
-      },
-    ]);
+  async function handleSignOut() {
+    setSigningOut(true);
+    setSignOutError(null);
+    try {
+      await signOut();
+      setConfirmSignOut(false);
+    } catch (error) {
+      setSignOutError(error instanceof Error ? error.message : 'Não foi possível sair.');
+      setConfirmSignOut(false);
+    } finally {
+      setSigningOut(false);
+    }
   }
   return (
-    <View style={[styles.screen]}>
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <Text style={[styles.title, { color: theme.text, marginTop: spacing.xl }]}>
         Perfil
       </Text>
@@ -51,16 +59,38 @@ export default function ProfileScreen() {
         ) : (
           <Button
             title={connecting ? 'Conectando...' : 'Conectar Spotify'}
-            onPress={connect}
+            onPress={() => void connect()}
             disabled={connecting}
           />
         )}
+        {spotifyError ? (
+          <Text style={{ color: theme.danger, textAlign: 'center' }}>{spotifyError}</Text>
+        ) : null}
+        <Text
+          selectable
+          style={{ color: theme.muted, fontSize: 11, textAlign: 'center' }}
+        >
+          URI de retorno usada: {spotifyRedirectUri}
+        </Text>
       </Card>
+      {signOutError ? (
+        <Text style={{ color: theme.danger, textAlign: 'center' }}>{signOutError}</Text>
+      ) : null}
       <Button
         title="Sair da conta"
         variant="danger"
-        onPress={confirmSignOut}
+        onPress={() => setConfirmSignOut(true)}
         style={styles.signOut}
+      />
+      <ConfirmDialog
+        visible={confirmSignOut}
+        title="Sair da conta"
+        message="Deseja encerrar sua sessão no RotaFit?"
+        confirmLabel="Sair"
+        destructive
+        busy={signingOut}
+        onCancel={() => setConfirmSignOut(false)}
+        onConfirm={() => void handleSignOut()}
       />
       <Text style={[styles.version, { color: theme.muted }]}>
         RotaFit v{Constants.expoConfig?.version ?? '1.0.0'}
