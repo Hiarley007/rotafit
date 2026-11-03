@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Appearance } from 'react-native';
 import { darkTheme, lightTheme } from './tokens';
 import type { ThemeTokens } from './tokens';
-export type ThemePreference = 'light' | 'dark' | 'system';
+export type ThemePreference = 'light' | 'dark';
 const STORAGE_KEY = 'rotafit.theme-preference';
 interface ThemeContextValue {
   theme: ThemeTokens;
@@ -12,30 +12,29 @@ interface ThemeContextValue {
   setPreference: (pref: ThemePreference) => void;
 }
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
-// Tema salvo no aparelho. Padrão "system": segue o tema do celular até o
-// usuário escolher um no Perfil.
+// Tema claro ou escuro salvo no aparelho.
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>('system');
-  const [systemScheme, setSystemScheme] = useState(Appearance.getColorScheme());
+  const [preference, setPreferenceState] = useState<ThemePreference>('light');
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((saved) => {
-        if (saved === 'light' || saved === 'dark' || saved === 'system')
+        if (saved === 'light' || saved === 'dark') {
           setPreferenceState(saved);
+          return;
+        }
+        if (saved === 'system') {
+          const migrated = Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
+          setPreferenceState(migrated);
+          AsyncStorage.setItem(STORAGE_KEY, migrated).catch(() => undefined);
+        }
       })
       .catch(() => undefined);
-    const sub = Appearance.addChangeListener(({ colorScheme }) =>
-      setSystemScheme(colorScheme),
-    );
-    return () => sub.remove();
   }, []);
   const setPreference = (pref: ThemePreference) => {
     setPreferenceState(pref);
     AsyncStorage.setItem(STORAGE_KEY, pref).catch(() => undefined);
   };
-  const mode =
-    preference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : preference;
-  const theme = mode === 'dark' ? darkTheme : lightTheme;
+  const theme = preference === 'dark' ? darkTheme : lightTheme;
   const value = useMemo(
     () => ({ theme, preference, setPreference }),
     [theme, preference],

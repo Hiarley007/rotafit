@@ -18,6 +18,7 @@ export default function HomeScreen() {
   const greeting = greetingForHour(new Date().getHours());
   return (
     <ScrollView
+      style={{ flex: 1, backgroundColor: theme.background }}
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl

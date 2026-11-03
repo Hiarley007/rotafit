@@ -9,7 +9,7 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
-  signOut: () => Promise<void>; 
+  signOut: () => Promise<void>;
 }
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -35,6 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut: async () => {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
+        setSession(null);
+        queryClient.clear();
       },
     }),
     [session, loading],

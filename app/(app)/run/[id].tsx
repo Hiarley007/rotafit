@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { RoutePath } from '@/components/RoutePath';
 import { Screen } from '@/components/Screen';
 import { ErrorState, LoadingView } from '@/components/StateViews';
@@ -22,24 +24,24 @@ export default function RunDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { theme } = useTheme();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const { data: run, isLoading, isError, error, refetch } = useRun(id);
   const del = useDeleteRun();
   if (isLoading) return <LoadingView />;
   if (isError || !run)
     return <ErrorState message={friendlyError(error)} onRetry={refetch} />;
-  function confirmDelete() {
-    Alert.alert('Excluir corrida', 'Esta ação não pode ser desfeita.', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir',
-        style: 'destructive',
-        onPress: () =>
-          del.mutate(run!.id, {
-            onSuccess: () => router.back(),
-            onError: (e) => Alert.alert('Não foi possível excluir', friendlyError(e)),
-          }),
-      },
-    ]);
+  async function confirmDelete() {
+    if (!run) return;
+    setDeleteError(null);
+    try {
+      await del.mutateAsync(run.id);
+      setConfirmingDelete(false);
+      router.replace('/history');
+    } catch (reason) {
+      setDeleteError(friendlyError(reason));
+      setConfirmingDelete(false);
+    }
   }
   return (
     <Screen scroll edges={['bottom', 'left', 'right']}>
@@ -73,9 +75,22 @@ export default function RunDetailScreen() {
       <Button
         title="Excluir corrida"
         variant="danger"
-        onPress={confirmDelete}
+        onPress={() => setConfirmingDelete(true)}
         loading={del.isPending}
         style={styles.deleteBtn}
+      />
+      {deleteError ? (
+        <Text style={[styles.deleteError, { color: theme.danger }]}>{deleteError}</Text>
+      ) : null}
+      <ConfirmDialog
+        visible={confirmingDelete}
+        title="Excluir corrida"
+        message="Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        destructive
+        busy={del.isPending}
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={() => void confirmDelete()}
       />
     </Screen>
   );
@@ -106,4 +121,5 @@ const styles = StyleSheet.create({
   },
   track: { flex: 1, fontSize: 14, fontWeight: '600' },
   deleteBtn: { marginTop: spacing.sm },
+  deleteError: { textAlign: 'center', marginTop: spacing.sm },
 });

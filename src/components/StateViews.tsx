@@ -6,7 +6,7 @@ import { Button } from './Button';
 export function LoadingView() {
   const { theme } = useTheme();
   return (
-    <View style={styles.center}>
+    <View style={[styles.center, { backgroundColor: theme.background }]}>
       <ActivityIndicator size="large" color={theme.primary} />
     </View>
   );
@@ -18,7 +18,7 @@ interface ErrorStateProps {
 export function ErrorState({ message, onRetry }: ErrorStateProps) {
   const { theme } = useTheme();
   return (
-    <View style={styles.center}>
+    <View style={[styles.center, { backgroundColor: theme.background }]}>
       <Ionicons name="cloud-offline" size={48} color={theme.muted} />
       <Text style={[styles.title, { color: theme.text }]}>Algo deu errado</Text>
       <Text style={[styles.text, { color: theme.muted }]}>{message}</Text>
