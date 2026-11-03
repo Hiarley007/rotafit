@@ -12,9 +12,13 @@ export const SPOTIFY_SCOPES = [
   'user-read-currently-playing',
 ];
 export const spotifyClientId = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
+// No web publicado a URI vem do próprio endereço do site; a variável _WEB (que
+// aponta para 127.0.0.1) só vale no desenvolvimento local.
 const configuredRedirectUri =
   Platform.OS === 'web'
-    ? process.env.EXPO_PUBLIC_SPOTIFY_REDIRECT_URI_WEB
+    ? __DEV__
+      ? process.env.EXPO_PUBLIC_SPOTIFY_REDIRECT_URI_WEB
+      : undefined
     : process.env.EXPO_PUBLIC_SPOTIFY_REDIRECT_URI_NATIVE;
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.replace(/\/+$/, '');
 const generatedRedirectUri =
